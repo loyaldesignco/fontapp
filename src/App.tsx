@@ -150,7 +150,7 @@ export default function App() {
         ["Handwriting & Script", f => f.category === "handwriting"],
       ];
       groups.forEach(([name, pred]) => {
-        const members = fonts.filter(pred).map(f => f.family).slice(0, 24);
+        const members = fonts.filter(pred).map(f => f.family);
         if (members.length) updated[name] = members;
       });
       return updated;
