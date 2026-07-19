@@ -20,11 +20,7 @@
       }
     ],
     "security": {
-      "csp": null,
-      "assetScope": {
-        "allow": ["**/*.ttf", "**/*.otf", "**/*.ttc", "**/*.otc"],
-        "deny": []
-      }
+      "csp": null
     }
   },
   "bundle": {
