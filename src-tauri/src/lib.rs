@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::path::PathBuf;
 use walkdir::WalkDir;
+
+mod commands;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LocalFont {
@@ -147,71 +148,13 @@ fn style_to_weight(style: &str) -> u32 {
     else { 400 }
 }
 
-/// Scan all system font directories and return discovered fonts.
-/// Each entry has family, style, weight, and the absolute path so the
-/// frontend can inject an @font-face rule using the asset:// protocol.
-#[tauri::command]
-pub fn scan_local_fonts() -> Vec<LocalFont> {
-    let dirs = font_dirs();
-    let extensions = ["ttf", "otf", "ttc", "otc", "woff", "woff2"];
-
-    // Deduplicate by path
-    let mut seen_paths = std::collections::HashSet::new();
-    let mut fonts: Vec<LocalFont> = Vec::new();
-
-    for dir in dirs {
-        for entry in WalkDir::new(&dir)
-            .follow_links(true)
-            .max_depth(4)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
-            let path = entry.path().to_path_buf();
-            if !path.is_file() { continue; }
-
-            let ext = path.extension()
-                .and_then(|e| e.to_str())
-                .map(|e| e.to_lowercase());
-            let ext = match ext {
-                Some(e) if extensions.contains(&e.as_str()) => e,
-                _ => continue,
-            };
-
-            // Skip woff/woff2 — browsers handle those differently and
-            // they're rarely in system font folders anyway.
-            if ext == "woff" || ext == "woff2" { continue; }
-
-            let path_str = path.to_string_lossy().to_string();
-            if !seen_paths.insert(path_str) { continue; }
-
-            fonts.extend(parse_font_file(&path));
-        }
-    }
-
-    // Sort by family then style
-    fonts.sort_by(|a, b| a.family.cmp(&b.family).then(a.style.cmp(&b.style)));
-    fonts
-}
-
-/// Group the flat font list into families with their available weights.
-/// Returns a map of family -> sorted list of weights found locally.
-#[tauri::command]
-pub fn group_local_fonts(fonts: Vec<LocalFont>) -> HashMap<String, Vec<u32>> {
-    let mut map: HashMap<String, Vec<u32>> = HashMap::new();
-    for f in fonts {
-        map.entry(f.family).or_default().push(f.weight);
-    }
-    for weights in map.values_mut() {
-        weights.sort();
-        weights.dedup();
-    }
-    map
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![scan_local_fonts, group_local_fonts])
+        .invoke_handler(tauri::generate_handler![
+            commands::scan_local_fonts,
+            commands::group_local_fonts
+        ])
         .run(tauri::generate_context!())
         .expect("error while running FontVault");
 }
