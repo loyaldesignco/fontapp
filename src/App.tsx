@@ -7,6 +7,7 @@ import { CustomizerDialog } from "@/components/CustomizerDialog";
 import { SettingsDialog } from "@/components/SettingsDialog";
 import { STARTER_FONTS, Font, AUTO_ORGANIZE_RULES } from "@/lib/fonts";
 import { View, PreviewMode, Collections, Presets, Preset } from "@/types";
+import { useLocalFonts } from "@/hooks/useLocalFonts";
 
 const LS = "fontvault.app.v1";
 
@@ -36,7 +37,9 @@ function saveState(s: Persisted) {
 export default function App() {
   const initial = loadState();
 
-  const [fonts, setFonts] = useState<Font[]>(STARTER_FONTS);
+  const [cloudFonts, setCloudFonts] = useState<Font[]>(STARTER_FONTS);
+  const [localScanEnabled, setLocalScanEnabled] = useState(false);
+  const localFonts = useLocalFonts(localScanEnabled);
   const [search, setSearch] = useState("");
   const [previewText, setPreviewText] = useState("");
   const [globalMode, setGlobalMode] = useState<PreviewMode>("custom");
@@ -64,6 +67,14 @@ export default function App() {
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
+
+  // Merge cloud + local fonts (local wins on family name match)
+  const fonts = useMemo(() => {
+    if (!localScanEnabled || localFonts.fonts.length === 0) return cloudFonts;
+    const localFamilies = new Set(localFonts.fonts.map(f => f.family));
+    const deduped = cloudFonts.filter(f => !localFamilies.has(f.family));
+    return [...deduped, ...localFonts.fonts].sort((a, b) => a.family.localeCompare(b.family));
+  }, [cloudFonts, localFonts.fonts, localScanEnabled]);
 
   // Filtered list
   const filtered = useMemo(() => {
@@ -121,7 +132,7 @@ export default function App() {
   }, []);
 
   const autoOrganize = useCallback(() => {
-    setFonts(prev => prev.map(f => {
+    setCloudFonts(prev => prev.map(f => {
       let cat = f.category;
       for (const [re, newCat] of AUTO_ORGANIZE_RULES) {
         if (re.test(f.family)) { cat = newCat; break; }
@@ -163,7 +174,7 @@ export default function App() {
         )].sort((a: number, b: number) => a - b),
         axes: it.axes?.length ? it.axes.map((a: { tag: string; start: number; end: number }) => ({ tag: a.tag, start: a.start, end: a.end })) : null,
       }));
-      setFonts(mapped);
+      setCloudFonts(mapped);
       setApiKey(key);
       setStatusMsg(`Loaded ${mapped.length} fonts from Google Fonts.`);
       setTimeout(() => setStatusMsg(""), 4000);
@@ -189,6 +200,10 @@ export default function App() {
         theme={theme} onToggleTheme={() => setTheme(t => t === "dark" ? "light" : "dark")}
         onAutoOrganize={autoOrganize}
         onSettings={() => setShowSettings(true)}
+        localScanEnabled={localScanEnabled}
+        localScanning={localFonts.scanning}
+        localCount={localFonts.count}
+        onToggleLocalScan={() => setLocalScanEnabled(e => !e)}
       />
 
       <div className="flex min-h-0 flex-1">
@@ -273,8 +288,14 @@ export default function App() {
       )}
 
       {/* Status bar */}
-      <div className="flex shrink-0 items-center border-t border-border bg-card/60 px-5 py-1.5 text-[11px] text-muted-foreground">
-        <span>{statusMsg || `${fonts.length} fonts · ${apiKey ? "Google Fonts connected" : "Starter set · Connect Google Fonts in Settings"}`}</span>
+      <div className="flex shrink-0 items-center gap-3 border-t border-border bg-card/60 px-5 py-1.5 text-[11px] text-muted-foreground">
+        <span>{statusMsg || `${fonts.length} fonts · ${apiKey ? "Google Fonts connected" : "Starter set · Connect Google Fonts in ⚙"}`}</span>
+        {localFonts.error && (
+          <span className="text-destructive">{localFonts.error}</span>
+        )}
+        {localScanEnabled && !localFonts.scanning && localFonts.count > 0 && (
+          <span className="text-primary">{localFonts.count} local fonts merged</span>
+        )}
       </div>
 
       {/* Dialogs */}

@@ -1,4 +1,4 @@
-import { Sparkles, Moon, Sun, Settings, LayoutGrid } from "lucide-react";
+import { Sparkles, Moon, Sun, Settings, HardDrive, Loader2 } from "lucide-react";
 import { PreviewMode } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -20,11 +20,16 @@ interface Props {
   onToggleTheme: () => void;
   onAutoOrganize: () => void;
   onSettings: () => void;
+  localScanEnabled: boolean;
+  localScanning: boolean;
+  localCount: number;
+  onToggleLocalScan: () => void;
 }
 
 export function Header({
   search, onSearch, size, onSize, globalMode, onGlobalMode,
   theme, onToggleTheme, onAutoOrganize, onSettings,
+  localScanEnabled, localScanning, localCount, onToggleLocalScan,
 }: Props) {
   return (
     <header className="flex shrink-0 items-center gap-3 border-b border-border bg-card/80 px-5 py-3 backdrop-blur">
@@ -79,6 +84,20 @@ export function Header({
       <div className="flex-1" />
 
       {/* Actions */}
+      <button
+        onClick={onToggleLocalScan}
+        title={localScanEnabled ? `${localCount} local fonts loaded` : "Scan installed fonts"}
+        className={cn(
+          "flex items-center gap-2 rounded-md border px-3.5 py-2 text-[11px] font-bold uppercase tracking-wide transition-all shrink-0",
+          localScanEnabled
+            ? "border-primary/50 bg-primary/10 text-primary"
+            : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
+        )}
+      >
+        {localScanning ? <Loader2 size={13} className="animate-spin" /> : <HardDrive size={13} />}
+        {localScanning ? "Scanning…" : localScanEnabled ? `${localCount} local` : "Local Fonts"}
+      </button>
+
       <button
         onClick={onAutoOrganize}
         className="flex items-center gap-2 rounded-md border border-primary bg-primary px-3.5 py-2 text-[11px] font-bold uppercase tracking-wide text-primary-foreground hover:brightness-105 transition-all shrink-0"

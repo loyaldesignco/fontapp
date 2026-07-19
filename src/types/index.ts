@@ -5,7 +5,10 @@ export interface Font {
   category: FontCategory;
   weights: number[];
   axes?: { tag: string; start: number; end: number }[] | null;
+  local?: boolean;
 }
+
+export type FontSource = "all" | "cloud" | "local";
 
 export type PreviewMode = "custom" | "sentence" | "alphabet" | "numbers";
 
