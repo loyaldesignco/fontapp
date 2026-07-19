@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Font, FontCategory } from "@/lib/fonts";
 
 interface LocalFontRaw {
@@ -41,6 +41,37 @@ function guessCategory(family: string, style: string): FontCategory {
   return "sans-serif";
 }
 
+function rawToFonts(raw: LocalFontRaw[]): Font[] {
+  const familyMap = new Map<string, { weights: Set<number>; category: FontCategory }>();
+
+  for (const f of raw) {
+    if (!familyMap.has(f.family)) {
+      familyMap.set(f.family, {
+        weights: new Set(),
+        category: guessCategory(f.family, f.style),
+      });
+    }
+    const entry = familyMap.get(f.family)!;
+    entry.weights.add(f.weight || 400);
+    injectFontFace(f.family, f.weight || 400, f.path);
+  }
+
+  const result: Font[] = Array.from(familyMap.entries()).map(([family, { weights, category }]) => ({
+    family,
+    category,
+    weights: Array.from(weights).sort((a, b) => a - b),
+    axes: null,
+    local: true,
+  }));
+
+  result.sort((a, b) => a.family.localeCompare(b.family));
+  return result;
+}
+
+function isTauri(): boolean {
+  return typeof (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ !== "undefined";
+}
+
 export interface LocalFontScanResult {
   fonts: Font[];
   count: number;
@@ -53,11 +84,38 @@ export function useLocalFonts(enabled: boolean): LocalFontScanResult {
   const [fonts, setFonts] = useState<Font[]>([]);
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [tick, setTick] = useState(0);
+  const [scanTick, setScanTick] = useState(0);
+  const cacheLoadedRef = useRef(false);
 
+  // Load cache immediately when first enabled (no scanning spinner)
+  useEffect(() => {
+    if (!enabled || cacheLoadedRef.current) return;
+    if (!isTauri()) return;
+    cacheLoadedRef.current = true;
+
+    (async () => {
+      try {
+        const { invoke } = await import("@tauri-apps/api/core");
+        const raw: LocalFontRaw[] = await invoke("get_cached_fonts");
+        if (raw.length > 0) {
+          setFonts(rawToFonts(raw));
+        }
+      } catch {
+        // Cache miss is fine — scan will populate fonts
+      }
+    })();
+  }, [enabled]);
+
+  // Reset cache flag when disabled so re-enabling loads cache again
+  useEffect(() => {
+    if (!enabled) {
+      cacheLoadedRef.current = false;
+    }
+  }, [enabled]);
+
+  // Full scan — runs on enable and on explicit rescan
   const scan = useCallback(async () => {
-    // Only works inside Tauri — bail gracefully in browser preview
-    if (typeof (window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__ === "undefined") {
+    if (!isTauri()) {
       setError("Local font scanning requires the Tauri desktop app.");
       return;
     }
@@ -67,43 +125,14 @@ export function useLocalFonts(enabled: boolean): LocalFontScanResult {
 
     try {
       const { invoke } = await import("@tauri-apps/api/core");
-
-      // Raw list: one entry per font file face
       const raw: LocalFontRaw[] = await invoke("scan_local_fonts");
-
-      // Group into families
-      const familyMap = new Map<string, { weights: Set<number>; category: FontCategory }>();
-
-      for (const f of raw) {
-        if (!familyMap.has(f.family)) {
-          familyMap.set(f.family, {
-            weights: new Set(),
-            category: guessCategory(f.family, f.style),
-          });
-        }
-        const entry = familyMap.get(f.family)!;
-        entry.weights.add(f.weight || 400);
-
-        // Inject the @font-face rule so the browser can render it
-        injectFontFace(f.family, f.weight || 400, f.path);
-      }
-
-      const result: Font[] = Array.from(familyMap.entries()).map(([family, { weights, category }]) => ({
-        family,
-        category,
-        weights: Array.from(weights).sort((a, b) => a - b),
-        axes: null,
-        local: true,
-      }));
-
-      result.sort((a, b) => a.family.localeCompare(b.family));
-      setFonts(result);
+      setFonts(rawToFonts(raw));
     } catch (err) {
       setError(String(err));
     } finally {
       setScanning(false);
     }
-  }, [tick]);
+  }, [scanTick]);
 
   useEffect(() => {
     if (enabled) scan();
@@ -114,6 +143,6 @@ export function useLocalFonts(enabled: boolean): LocalFontScanResult {
     count: fonts.length,
     scanning,
     error,
-    rescan: () => setTick(t => t + 1),
+    rescan: () => setScanTick(t => t + 1),
   };
 }

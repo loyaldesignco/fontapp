@@ -17,16 +17,17 @@ interface Persisted {
   apiKey: string;
   collections: Collections;
   presets: Presets;
+  localScanEnabled: boolean;
 }
 
 function loadState(): Persisted {
   try {
     return {
-      favorites: [], theme: "dark", apiKey: "", collections: {}, presets: {},
+      favorites: [], theme: "dark", apiKey: "", collections: {}, presets: {}, localScanEnabled: false,
       ...JSON.parse(localStorage.getItem(LS) || "{}"),
     };
   } catch {
-    return { favorites: [], theme: "dark", apiKey: "", collections: {}, presets: {} };
+    return { favorites: [], theme: "dark", apiKey: "", collections: {}, presets: {}, localScanEnabled: false };
   }
 }
 
@@ -38,7 +39,7 @@ export default function App() {
   const initial = loadState();
 
   const [cloudFonts, setCloudFonts] = useState<Font[]>(STARTER_FONTS);
-  const [localScanEnabled, setLocalScanEnabled] = useState(false);
+  const [localScanEnabled, setLocalScanEnabled] = useState(initial.localScanEnabled);
   const localFonts = useLocalFonts(localScanEnabled);
   const [search, setSearch] = useState("");
   const [previewText, setPreviewText] = useState("");
@@ -60,8 +61,8 @@ export default function App() {
 
   // Persist
   useEffect(() => {
-    saveState({ favorites: [...favorites], theme, apiKey, collections, presets });
-  }, [favorites, theme, apiKey, collections, presets]);
+    saveState({ favorites: [...favorites], theme, apiKey, collections, presets, localScanEnabled });
+  }, [favorites, theme, apiKey, collections, presets, localScanEnabled]);
 
   // Apply theme
   useEffect(() => {

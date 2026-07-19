@@ -153,7 +153,8 @@ pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             commands::scan_local_fonts,
-            commands::group_local_fonts
+            commands::group_local_fonts,
+            commands::get_cached_fonts
         ])
         .run(tauri::generate_context!())
         .expect("error while running FontVault");
