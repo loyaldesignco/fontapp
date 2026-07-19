@@ -1,5 +1,6 @@
 use crate::{font_dirs, parse_font_file, LocalFont};
 use std::collections::HashMap;
+use rayon::prelude::*;
 use walkdir::WalkDir;
 
 #[tauri::command]
@@ -7,8 +8,9 @@ pub fn scan_local_fonts() -> Vec<LocalFont> {
     let dirs = font_dirs();
     let extensions = ["ttf", "otf", "ttc", "otc"];
 
+    // Collect all unique font file paths first
     let mut seen_paths = std::collections::HashSet::new();
-    let mut fonts: Vec<LocalFont> = Vec::new();
+    let mut paths: Vec<std::path::PathBuf> = Vec::new();
 
     for dir in dirs {
         for entry in WalkDir::new(&dir)
@@ -23,18 +25,23 @@ pub fn scan_local_fonts() -> Vec<LocalFont> {
             let ext = path.extension()
                 .and_then(|e| e.to_str())
                 .map(|e| e.to_lowercase());
-            let ext = match ext {
-                Some(e) if extensions.contains(&e.as_str()) => e,
+            match ext {
+                Some(e) if extensions.contains(&e.as_str()) => {}
                 _ => continue,
             };
-            let _ = ext;
 
             let path_str = path.to_string_lossy().to_string();
-            if !seen_paths.insert(path_str) { continue; }
-
-            fonts.extend(parse_font_file(&path));
+            if seen_paths.insert(path_str) {
+                paths.push(path);
+            }
         }
     }
+
+    // Parse all font files in parallel
+    let mut fonts: Vec<LocalFont> = paths
+        .par_iter()
+        .flat_map(|p| parse_font_file(p))
+        .collect();
 
     fonts.sort_by(|a, b| a.family.cmp(&b.family).then(a.style.cmp(&b.style)));
     fonts
