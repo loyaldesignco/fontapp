@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FontVault — Font Manager</title>
+<style>
+  :root{
+    --bg:#0a0b0d; --bg2:#0e0f12; --panel:#0c0d10; --panel2:#131418; --panel3:#191b20;
+    --line:rgba(255,255,255,.07); --line2:rgba(255,255,255,.17);
+    --text:#f4f5f7; --text2:#a6acb6; --muted:#5f6570;
+    --accent:#d6ff43; --accent2:#d6ff43; --accent-ink:#0a0b0d; --star:#ffd23f; --good:#8bde5a; --danger:#ff5d5d;
+    --shadow:0 24px 70px rgba(0,0,0,.65);
+    --radius:6px;
+  }
+  body[data-theme="light"]{
+    --bg:#f5f5f2; --bg2:#efefeb; --panel:#ffffff; --panel2:#f2f2ee; --panel3:#e8e8e2;
+    --line:rgba(0,0,0,.10); --line2:rgba(0,0,0,.22);
+    --text:#0e0f11; --text2:#3c3f45; --muted:#8a8d94;
+    --accent:#111214; --accent2:#111214; --accent-ink:#ffffff; --star:#c49500;
+    --shadow:0 24px 70px rgba(0,0,0,.15);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex; flex-direction:column; height:100vh; overflow:hidden;
+    transition:background .3s,color .3s;
+  }
+  ::-webkit-scrollbar{width:11px;height:11px}
+  ::-webkit-scrollbar-thumb{background:var(--line2);border-radius:8px;border:3px solid transparent;background-clip:content-box}
+  ::-webkit-scrollbar-thumb:hover{background:var(--muted);background-clip:content-box}
+
+  /* ---------- Top bar ---------- */
+  header{
+    display:flex; align-items:center; gap:14px; padding:12px 20px;
+    background:color-mix(in srgb,var(--panel) 88%,transparent);
+    backdrop-filter:blur(10px); border-bottom:1px solid var(--line); flex-shrink:0; z-index:5;
+  }
+  .logo{display:flex; align-items:center; gap:11px; font-weight:700; font-size:14px; letter-spacing:.18em; text-transform:uppercase; white-space:nowrap}
+  .logo .mark{
+    width:28px;height:28px;border-radius:5px;display:grid;place-items:center;
+    background:var(--accent); color:var(--accent-ink); font-weight:800; font-size:16px;
+  }
+  .logo small{display:block;font-size:9px;font-weight:600;color:var(--muted);letter-spacing:.22em;text-transform:uppercase;margin-top:1px}
+  .grow{flex:1}
+  input,select,button,textarea{font-family:inherit;color:inherit}
+  .search{
+    flex:1; max-width:380px; background:var(--panel2); border:1px solid var(--line);
+    color:var(--text); padding:10px 14px; border-radius:6px; font-size:13.5px; outline:none; transition:.15s;
+  }
+  .search::placeholder{color:var(--muted)}
+  .search:focus{border-color:var(--accent); box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 22%,transparent)}
+  .ctrl{display:flex; align-items:center; gap:9px; color:var(--muted); font-size:12px; font-weight:500}
+  .ctrl input[type=range]{accent-color:var(--accent); width:96px}
+  .btn{
+    background:transparent; border:1px solid var(--line2); color:var(--text);
+    padding:9px 14px; border-radius:6px; cursor:pointer; font-size:11px; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
+    display:inline-flex; align-items:center; gap:7px; transition:.15s; white-space:nowrap;
+  }
+  .btn:hover{border-color:var(--text); background:var(--panel2)}
+  .btn.primary{background:var(--accent); color:var(--accent-ink); border-color:var(--accent); font-weight:700}
+  .btn.primary:hover{filter:brightness(1.05)}
+  .btn.icon{padding:9px 11px; letter-spacing:0; font-size:13px}
+
+  /* ---------- Layout ---------- */
+  .body{display:flex; flex:1; min-height:0}
+  aside{
+    width:250px; background:color-mix(in srgb,var(--panel) 70%,transparent);
+    border-right:1px solid var(--line); padding:16px 12px; overflow-y:auto; flex-shrink:0;
+  }
+  .navgroup{margin-bottom:22px}
+  .navgroup h4{
+    margin:0 0 8px 10px; font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted);
+    display:flex; justify-content:space-between; align-items:center; font-weight:700;
+  }
+  .navgroup h4 .add{cursor:pointer; color:var(--accent); font-size:18px; line-height:1; padding:0 4px}
+  .navgroup h4 .add:hover{color:var(--accent2)}
+  .navitem{
+    display:flex; align-items:center; gap:10px;
+    padding:9px 11px; border-radius:10px; cursor:pointer; font-size:14px; color:var(--text2);
+    transition:.12s; position:relative;
+  }
+  .navitem:hover{background:var(--panel2); color:var(--text)}
+  .navitem.active{background:var(--panel3); color:var(--text); font-weight:600}
+  .navitem.active::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:3px;background:linear-gradient(var(--accent),var(--accent2))}
+  .navitem .ico{width:18px;text-align:center;opacity:.9}
+  .navitem .label{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:capitalize}
+  .navitem .count{color:var(--muted); font-size:12px; font-variant-numeric:tabular-nums}
+  .navitem .del{color:var(--muted); font-size:12px; opacity:0; transition:.12s}
+  .navitem:hover .del{opacity:1}
+  .navitem .del:hover{color:var(--danger)}
+  .swatch{width:9px;height:9px;border-radius:3px;flex-shrink:0}
+
+  /* ---------- Main ---------- */
+  main{flex:1; overflow-y:auto; padding:22px 24px 90px}
+  .toolbar{display:flex; align-items:center; gap:14px; margin-bottom:18px; flex-wrap:wrap}
+  .toolbar .title{font-size:22px; font-weight:750; letter-spacing:-.02em}
+  .toolbar .sub{color:var(--muted); font-size:13px; font-weight:500}
+  .seg{display:inline-flex; background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:3px; gap:2px}
+  .seg button{
+    background:transparent;border:none;color:var(--muted);padding:6px 11px;border-radius:4px;
+    font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transition:.12s;
+  }
+  .seg button.on{background:var(--accent);color:var(--accent-ink)}
+  .seg button:hover{color:var(--text)}
+  .seg button.on:hover{color:var(--accent-ink)}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(360px,1fr)); gap:16px}
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+    padding:18px 18px 14px; display:flex; flex-direction:column; gap:12px; min-height:150px;
+    transition:.16s; position:relative;
+  }
+  .card:hover{border-color:var(--line2)}
+  .card:hover .name{color:var(--accent)}
+  .card.selected{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent)}
+  .card .top{display:flex; justify-content:space-between; align-items:flex-start; gap:10px}
+  .card .name{font-weight:650; font-size:15px; letter-spacing:-.01em}
+  .card .meta{display:flex; align-items:center; gap:8px; margin-top:3px}
+  .tag{font-size:9px; letter-spacing:.1em; color:var(--muted); text-transform:uppercase; background:transparent; border:1px solid var(--line); padding:3px 7px; border-radius:3px; font-weight:600}
+  .card .preview{
+    font-size:34px; line-height:1.24; word-break:break-word; margin:2px 0;
+    min-height:46px; color:var(--text); transition:font-size .1s;
+  }
+  .card .preview.loading{color:var(--muted); font-size:14px; font-style:italic; min-height:46px}
+  .weights{display:flex; flex-wrap:wrap; gap:5px}
+  .wchip{font-size:10.5px; color:var(--text2); background:var(--panel2); border:1px solid var(--line); padding:2px 7px; border-radius:6px; font-variant-numeric:tabular-nums}
+  .card .actions{display:flex; align-items:center; gap:7px; margin-top:auto; padding-top:4px}
+  .iconbtn{
+    background:transparent; border:1px solid var(--line); color:var(--muted);
+    width:32px;height:32px;border-radius:6px;cursor:pointer;display:grid;place-items:center;font-size:14px;transition:.12s;
+  }
+  .iconbtn:hover{border-color:var(--line2); color:var(--text); background:var(--panel2)}
+  .iconbtn.starred{color:var(--star); border-color:color-mix(in srgb,var(--star) 50%,var(--line))}
+  .iconbtn.cmp.on{color:var(--accent); border-color:var(--accent); background:color-mix(in srgb,var(--accent) 12%,transparent)}
+  .card .pmode{display:inline-flex; gap:2px; margin-left:auto; background:var(--panel2); border:1px solid var(--line); border-radius:9px; padding:2px}
+  .card .pmode button{background:transparent;border:none;color:var(--muted);padding:5px 8px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer}
+  .card .pmode button.on{background:var(--panel3);color:var(--text)}
+  .card select{
+    background:var(--panel2); border:1px solid var(--line); color:var(--muted);
+    border-radius:9px; padding:7px 9px; font-size:12px; cursor:pointer;
+  }
+  .empty{color:var(--muted); text-align:center; padding:70px 20px; font-size:15px}
+  .empty .big{font-size:40px; margin-bottom:10px; opacity:.5}
+
+  /* ---------- Compare bar + overlay ---------- */
+  .cmpbar{
+    position:fixed; left:50%; bottom:56px; transform:translateX(-50%) translateY(30px);
+    background:var(--panel3); border:1px solid var(--line2); border-radius:8px; box-shadow:var(--shadow);
+    display:flex; align-items:center; gap:12px; padding:10px 12px 10px 16px; opacity:0; pointer-events:none; transition:.22s; z-index:40;
+  }
+  .cmpbar.show{opacity:1; pointer-events:auto; transform:translateX(-50%) translateY(0)}
+  .cmpbar .lbl{font-size:13px;font-weight:600}
+  .cmpbar .chips{display:flex;gap:6px;max-width:40vw;overflow:hidden}
+  .cmpbar .chip{font-size:12px;background:var(--panel);border:1px solid var(--line);padding:4px 9px;border-radius:20px;white-space:nowrap}
+
+  .overlay{position:fixed; inset:0; background:var(--bg); display:none; flex-direction:column; z-index:80}
+  .overlay.show{display:flex}
+  .overlay .obar{display:flex;align-items:center;gap:14px;padding:14px 22px;border-bottom:1px solid var(--line);flex-shrink:0}
+  .overlay .obar .title{font-size:18px;font-weight:750}
+  .overlay .obody{flex:1;overflow-y:auto;padding:10px 0}
+  .crow{padding:22px 26px;border-bottom:1px solid var(--line)}
+  .crow .chead{display:flex;align-items:baseline;gap:12px;margin-bottom:10px}
+  .crow .cname{font-size:15px;font-weight:650}
+  .crow .cprev{font-size:52px;line-height:1.2;word-break:break-word}
+
+  /* ---------- Customizer ---------- */
+  .custwrap{display:flex; flex:1; min-height:0}
+  .custpanel{width:330px; border-right:1px solid var(--line); padding:20px 18px 30px; overflow-y:auto; flex-shrink:0}
+  .custstage{flex:1; overflow:auto; padding:44px; display:flex; align-items:center; justify-content:center;
+             background:repeating-linear-gradient(45deg,transparent,transparent 12px,color-mix(in srgb,var(--panel) 40%,transparent) 12px,color-mix(in srgb,var(--panel) 40%,transparent) 24px)}
+  .custstage .cprev{max-width:100%; text-align:center; color:var(--text)}
+  .ctl{margin-bottom:18px}
+  .ctl label{display:flex; justify-content:space-between; font-size:12px; color:var(--text2); font-weight:600; margin-bottom:7px}
+  .ctl label .val{color:var(--accent); font-variant-numeric:tabular-nums}
+  .ctl input[type=range]{width:100%; accent-color:var(--accent)}
+  .toggle{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text2); cursor:pointer}
+  .toggle input{accent-color:var(--accent); width:16px; height:16px}
+  .divider{height:1px; background:var(--line); margin:20px 0}
+  .save-row{display:flex; gap:8px; margin:4px 0 10px}
+  .save-row input{flex:1; background:var(--panel2); border:1px solid var(--line); color:var(--text); border-radius:9px; padding:9px 11px; font-size:13px; outline:none}
+  .presetlist{display:flex; flex-direction:column; gap:6px}
+  .preset{display:flex; align-items:center; gap:8px; background:var(--panel2); border:1px solid var(--line); border-radius:9px; padding:9px 11px; font-size:13px; cursor:pointer; transition:.12s}
+  .preset:hover{border-color:var(--accent)}
+  .preset .pdel{margin-left:auto; color:var(--muted); font-size:12px}
+  .preset .pdel:hover{color:var(--danger)}
+  .presetchip{font-size:10.5px; color:var(--accent2); background:color-mix(in srgb,var(--accent2) 12%,transparent); border:1px solid color-mix(in srgb,var(--accent2) 40%,transparent); padding:2px 8px; border-radius:20px; font-weight:600}
+
+  /* ---------- Modals + toast ---------- */
+  .modal-bg{position:fixed; inset:0; background:rgba(0,0,0,.5); backdrop-filter:blur(3px); display:none; place-items:center; z-index:90}
+  .modal-bg.show{display:grid}
+  .modal{background:var(--panel); border:1px solid var(--line2); border-radius:10px; padding:24px; width:460px; max-width:92vw; box-shadow:var(--shadow)}
+  .modal h3{margin:0 0 8px; font-size:18px}
+  .modal p{color:var(--muted); font-size:13px; margin:0 0 16px; line-height:1.55}
+  .modal input{width:100%; background:var(--panel2); border:1px solid var(--line); color:var(--text); padding:11px 13px; border-radius:11px; margin-bottom:16px; outline:none}
+  .modal input:focus{border-color:var(--accent)}
+  .modal .row{display:flex; gap:10px; justify-content:flex-end}
+  .modal a{color:var(--accent)}
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(10px);
+    background:var(--panel3); border:1px solid var(--line2); color:var(--text);
+    padding:11px 18px; border-radius:7px; font-size:13px; opacity:0; transition:.25s; pointer-events:none; z-index:95; box-shadow:var(--shadow);
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+  .foot{padding:9px 20px; border-top:1px solid var(--line); color:var(--muted); font-size:12px;
+        background:color-mix(in srgb,var(--panel) 80%,transparent); flex-shrink:0; display:flex; gap:8px; align-items:center}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--good)}
+</style>
+</head>
+<body data-theme="dark">
+  <header>
+    <div class="logo"><span class="mark">F</span><span>FontVault<small>font manager</small></span></div>
+    <input id="search" class="search" placeholder="Search fonts by name…" />
+    <div class="ctrl">Size <input id="size" type="range" min="16" max="80" value="34" /></div>
+    <button id="theme-btn" class="btn icon" title="Toggle theme">🌙</button>
+    <button id="key-btn" class="btn">☁ Connect Google Fonts</button>
+    <button id="ai-btn" class="btn primary">✦ Auto-organize</button>
+  </header>
+
+  <div class="body">
+    <aside id="sidebar"></aside>
+    <main>
+      <div class="toolbar">
+        <div>
+          <div class="title" id="view-title">All Fonts</div>
+        </div>
+        <div class="sub" id="view-sub"></div>
+        <div class="grow"></div>
+        <div class="seg" id="global-mode">
+          <button data-m="custom" class="on">Custom</button>
+          <button data-m="sentence">Sentence</button>
+          <button data-m="alphabet">Abc</button>
+          <button data-m="numbers">123</button>
+        </div>
+        <input id="preview-text" class="search" style="max-width:260px" placeholder="Type preview text…" />
+      </div>
+      <div id="grid" class="grid"></div>
+      <div id="empty" class="empty" style="display:none"><div class="big">🔎</div>No fonts match here yet.</div>
+    </main>
+  </div>
+
+  <div class="foot"><span class="dot"></span><span id="foot">Loading…</span></div>
+
+  <!-- Compare bar -->
+  <div class="cmpbar" id="cmpbar">
+    <span class="lbl" id="cmp-count">0 selected</span>
+    <div class="chips" id="cmp-chips"></div>
+    <button class="btn" id="cmp-clear">Clear</button>
+    <button class="btn primary" id="cmp-open">Compare ↗</button>
+  </div>
+
+  <!-- Compare overlay -->
+  <div class="overlay" id="overlay">
+    <div class="obar">
+      <div class="title">Compare fonts</div>
+      <div class="ctrl">Size <input id="cmp-size" type="range" min="24" max="96" value="52" /></div>
+      <input id="cmp-text" class="search" style="max-width:420px" placeholder="Type text to compare across all fonts…" />
+      <div class="grow"></div>
+      <button class="btn" id="cmp-close">✕ Close</button>
+    </div>
+    <div class="obody" id="cmp-body"></div>
+  </div>
+
+  <!-- Customizer overlay -->
+  <div class="overlay" id="cust">
+    <div class="obar">
+      <div class="title">Customize · <span id="cust-name" style="color:var(--accent)"></span></div>
+      <input id="cust-text" class="search" style="max-width:420px" placeholder="Type preview text…" />
+      <div class="grow"></div>
+      <button class="btn" id="cust-close">✕ Close</button>
+    </div>
+    <div class="custwrap">
+      <div class="custpanel">
+        <div id="cust-badge" style="font-size:12px;color:var(--muted);margin-bottom:14px"></div>
+        <div id="cust-controls"></div>
+        <div class="divider"></div>
+        <h4 style="margin:0 0 10px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700">Variable presets</h4>
+        <div class="save-row"><input id="preset-name" placeholder="Name this preset…"><button class="btn primary" id="preset-save">Save</button></div>
+        <div class="presetlist" id="cust-presets"></div>
+      </div>
+      <div class="custstage"><div id="cust-prev" class="cprev">The quick brown fox</div></div>
+    </div>
+  </div>
+
+  <!-- API key modal -->
+  <div class="modal-bg" id="key-modal">
+    <div class="modal">
+      <h3>Load the full Google Fonts catalog</h3>
+      <p>FontVault ships with a curated starter set that works instantly. To pull in all
+        ~1,800 Google Fonts (with real weight data), paste a free Google Fonts API key.
+        Get one at <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a>
+        → enable the "Web Fonts Developer API". Your key stays on this computer only.</p>
+      <input id="key-input" placeholder="AIza… paste your API key" />
+      <div class="row">
+        <button class="btn" id="key-cancel">Cancel</button>
+        <button class="btn primary" id="key-save">Load fonts</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New collection modal -->
+  <div class="modal-bg" id="coll-modal">
+    <div class="modal">
+      <h3>New collection</h3>
+      <p>Group fonts however you like — "Brand", "Headlines", "Client X".</p>
+      <input id="coll-input" placeholder="Collection name" />
+      <div class="row">
+        <button class="btn" id="coll-cancel">Cancel</button>
+        <button class="btn primary" id="coll-save">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ---------- Starter catalog: [family, category, weightsCSV] ---------- */
+const STARTER = [
+  ["Roboto","sans-serif","100,300,400,500,700,900"],["Open Sans","sans-serif","300,400,600,700,800"],
+  ["Lato","sans-serif","100,300,400,700,900"],["Montserrat","sans-serif","100,300,400,500,700,900"],
+  ["Poppins","sans-serif","100,300,400,500,600,700,900"],["Inter","sans-serif","100,400,500,700,900"],
+  ["Work Sans","sans-serif","300,400,500,600,700"],["Nunito","sans-serif","300,400,600,700,800"],
+  ["Raleway","sans-serif","100,300,400,600,700,900"],["Rubik","sans-serif","300,400,500,700,900"],
+  ["DM Sans","sans-serif","400,500,700"],["Manrope","sans-serif","300,400,600,700,800"],
+  ["Mulish","sans-serif","300,400,600,700,900"],["Karla","sans-serif","300,400,600,700"],
+  ["Quicksand","sans-serif","300,400,500,700"],["Josefin Sans","sans-serif","300,400,600,700"],
+  ["Oswald","sans-serif","300,400,500,600,700"],["Barlow","sans-serif","300,400,500,600,700"],
+  ["Cabin","sans-serif","400,500,600,700"],["Assistant","sans-serif","300,400,600,700,800"],
+  ["Playfair Display","serif","400,500,700,900"],["Merriweather","serif","300,400,700,900"],
+  ["Lora","serif","400,500,600,700"],["PT Serif","serif","400,700"],
+  ["Noto Serif","serif","400,700"],["Cormorant Garamond","serif","300,400,500,600,700"],
+  ["EB Garamond","serif","400,500,600,700,800"],["Bitter","serif","300,400,600,700,900"],
+  ["Crimson Text","serif","400,600,700"],["Libre Baskerville","serif","400,700"],
+  ["Source Serif 4","serif","300,400,600,700,900"],["Spectral","serif","300,400,500,600,700,800"],
+  ["Zilla Slab","serif","300,400,500,600,700"],["Domine","serif","400,500,600,700"],
+  ["Frank Ruhl Libre","serif","300,400,500,700,900"],["Cardo","serif","400,700"],
+  ["Bebas Neue","display","400"],["Anton","display","400"],["Righteous","display","400"],
+  ["Alfa Slab One","display","400"],["Abril Fatface","display","400"],["Lobster","display","400"],
+  ["Comfortaa","display","300,400,500,700"],["Fredoka","display","400,500,600,700"],
+  ["Archivo Black","display","400"],["Bungee","display","400"],["Passion One","display","400,700,900"],
+  ["Titan One","display","400"],
+  ["Pacifico","handwriting","400"],["Dancing Script","handwriting","400,500,600,700"],
+  ["Caveat","handwriting","400,500,600,700"],["Satisfy","handwriting","400"],
+  ["Great Vibes","handwriting","400"],["Sacramento","handwriting","400"],
+  ["Shadows Into Light","handwriting","400"],["Kalam","handwriting","300,400,700"],
+  ["Permanent Marker","handwriting","400"],["Indie Flower","handwriting","400"],
+  ["Amatic SC","handwriting","400,700"],["Courgette","handwriting","400"],
+  ["Roboto Mono","monospace","300,400,500,700"],["JetBrains Mono","monospace","400,500,700,800"],
+  ["Source Code Pro","monospace","300,400,500,700,900"],["Fira Code","monospace","300,400,500,700"],
+  ["IBM Plex Mono","monospace","300,400,500,600,700"],["Space Mono","monospace","400,700"],
+  ["Inconsolata","monospace","300,400,600,700,900"],["Ubuntu Mono","monospace","400,700"]
+];
+const WEIGHT_NAME={100:"Thin",200:"ExtraLight",300:"Light",400:"Regular",500:"Medium",600:"SemiBold",700:"Bold",800:"ExtraBold",900:"Black"};
+const PANGRAM="The quick brown fox jumps over the lazy dog";
+const SENTENCE="Whereas recognition of the inherent dignity";
+const ALPHA="ABCDEFGHIJKLM abcdefghijklm";
+const NUMS="0123456789 £$€ &@#%";
+
+/* ---------- State ---------- */
+const LS="fontvault.v2";
+const store=JSON.parse(localStorage.getItem(LS)||"{}");
+const state={
+  favorites:new Set(store.favorites||[]),
+  collections:store.collections||{},
+  presets:store.presets||{},
+  apiKey:store.apiKey||"",
+  theme:store.theme||"dark",
+  view:{type:"all",name:null},
+  fonts:STARTER.map(([family,category,w])=>({family,category,weights:w.split(",").map(Number)})),
+  loaded:new Set(),
+  compare:new Set(),
+  cardMode:{},           // family -> preview mode override
+  globalMode:"custom",
+  previewText:"",
+  size:34,
+};
+const COLORS=["#c7ccd4","#9aa0aa","#7d8590","#e2e5ea","#6b7280","#b0b6c0","#8a90a0"];
+function save(){localStorage.setItem(LS,JSON.stringify({
+  favorites:[...state.favorites],collections:state.collections,presets:state.presets,apiKey:state.apiKey,theme:state.theme}));}
+
+/* ---------- Font loading ---------- */
+function loadFont(family,weights){
+  if(state.loaded.has(family)) return;
+  state.loaded.add(family);
+  const ws=(weights&&weights.length?weights:[400,700]).slice(0,6).join(";");
+  const link=document.createElement("link"); link.rel="stylesheet";
+  link.href="https://fonts.googleapis.com/css2?family="+encodeURIComponent(family)+":wght@"+ws+"&display=swap";
+  document.head.appendChild(link);
+}
+const io=new IntersectionObserver(es=>{
+  for(const e of es){ if(e.isIntersecting){
+    const t=e.target, fam=t.dataset.family;
+    loadFont(fam, (state.fonts.find(f=>f.family===fam)||{}).weights);
+    t.style.fontFamily="'"+fam+"', "+(t.dataset.cat||"sans-serif");
+    t.classList.remove("loading");
+    t.textContent=sampleFor(fam);
+    io.unobserve(t);
+  }}
+},{rootMargin:"250px"});
+
+function sampleFor(fam){
+  const mode=state.cardMode[fam]||state.globalMode;
+  if(mode==="sentence") return SENTENCE;
+  if(mode==="alphabet") return ALPHA;
+  if(mode==="numbers") return NUMS;
+  return state.previewText || PANGRAM;   // custom (falls back to pangram when empty)
+}
+
+/* ---------- Helpers ---------- */
+const el=id=>document.getElementById(id);
+const grid=el("grid");
+function catColor(c){const cats=["sans-serif","serif","display","handwriting","monospace"];return COLORS[cats.indexOf(c)%COLORS.length]||"#888";}
+
+function currentFonts(){
+  let list=state.fonts.slice();
+  const q=el("search").value.trim().toLowerCase();
+  if(q) list=list.filter(f=>f.family.toLowerCase().includes(q));
+  const v=state.view;
+  if(v.type==="favorites") list=list.filter(f=>state.favorites.has(f.family));
+  else if(v.type==="category") list=list.filter(f=>f.category===v.name);
+  else if(v.type==="collection"){const s=new Set(state.collections[v.name]||[]); list=list.filter(f=>s.has(f.family));}
+  return list;
+}
+
+/* ---------- Grid ---------- */
+function renderGrid(){
+  const list=currentFonts();
+  grid.innerHTML="";
+  el("empty").style.display=list.length?"none":"block";
+  const collNames=Object.keys(state.collections);
+  for(const f of list){
+    const card=document.createElement("div"); card.className="card"+(state.compare.has(f.family)?" selected":"");
+    const starred=state.favorites.has(f.family), inCmp=state.compare.has(f.family);
+    const wchips=(f.weights||[400]).slice(0,7).map(w=>`<span class="wchip" title="${WEIGHT_NAME[w]||w}">${w}</span>`).join("");
+    card.innerHTML=`
+      <div class="top">
+        <div>
+          <div class="name">${f.family}</div>
+          <div class="meta"><span class="tag" style="border-color:${catColor(f.category)}55;color:${catColor(f.category)}">${f.category}</span>${(state.presets[f.family]||[]).length?`<span class="presetchip">⚙ ${(state.presets[f.family]||[]).length}</span>`:""}</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="iconbtn cust" title="Customize / variable presets">⚙</button>
+          <button class="iconbtn cmp ${inCmp?'on':''}" title="Add to compare">⇄</button>
+          <button class="iconbtn ${starred?'starred':''}" title="Favorite">${starred?'★':'☆'}</button>
+        </div>
+      </div>
+      <div class="preview loading" data-family="${f.family}" data-cat="${f.category}" style="font-size:${state.size}px">loading preview…</div>
+      <div class="weights">${wchips}</div>
+      <div class="actions">
+        <select><option value="">＋ Collection…</option>${collNames.map(n=>`<option value="${n}">${n}</option>`).join("")}</select>
+        <div class="pmode" title="Preview mode for this card">
+          <button data-m="custom">Aa</button><button data-m="sentence">Sen</button>
+          <button data-m="alphabet">Abc</button><button data-m="numbers">123</button>
+        </div>
+      </div>`;
+    // favorite
+    card.querySelector('.iconbtn[title="Favorite"]').onclick=()=>{
+      state.favorites.has(f.family)?state.favorites.delete(f.family):state.favorites.add(f.family);
+      save(); renderGrid(); renderSidebar();
+    };
+    // customize
+    card.querySelector(".iconbtn.cust").onclick=()=>openCustomizer(f.family);
+    // compare
+    card.querySelector(".iconbtn.cmp").onclick=()=>{
+      if(state.compare.has(f.family)) state.compare.delete(f.family);
+      else{ if(state.compare.size>=6){toast("Compare up to 6 at once");return;} state.compare.add(f.family); }
+      renderGrid(); renderCmpBar();
+    };
+    // collection
+    card.querySelector("select").onchange=ev=>{
+      const n=ev.target.value; if(!n) return;
+      (state.collections[n]=state.collections[n]||[]);
+      if(!state.collections[n].includes(f.family)) state.collections[n].push(f.family);
+      save(); renderSidebar(); toast(`Added ${f.family} → "${n}"`); ev.target.value="";
+    };
+    // per-card preview mode
+    const activeMode=state.cardMode[f.family]||state.globalMode;
+    card.querySelectorAll(".pmode button").forEach(b=>{
+      if(b.dataset.m===activeMode) b.classList.add("on");
+      b.onclick=()=>{
+        state.cardMode[f.family]=b.dataset.m;
+        card.querySelectorAll(".pmode button").forEach(x=>x.classList.toggle("on",x===b));
+        const p=card.querySelector(".preview"); if(!p.classList.contains("loading")) p.textContent=sampleFor(f.family);
+      };
+    });
+    grid.appendChild(card);
+    io.observe(card.querySelector(".preview"));
+  }
+  el("view-sub").textContent=list.length+" font"+(list.length===1?"":"s");
+}
+
+/* ---------- Sidebar ---------- */
+function renderSidebar(){
+  const cats=["sans-serif","serif","display","handwriting","monospace"];
+  const catCount=c=>state.fonts.filter(f=>f.category===c).length;
+  const collNames=Object.keys(state.collections);
+  const s=el("sidebar"); s.innerHTML="";
+  const mk=(ico,label,count,active,onclick,color,delFn)=>{
+    const d=document.createElement("div"); d.className="navitem"+(active?" active":"");
+    d.innerHTML=`${color?`<span class="swatch" style="background:${color}"></span>`:`<span class="ico">${ico}</span>`}
+      <span class="label">${label}</span>${delFn?`<span class="del">✕</span>`:""}<span class="count">${count}</span>`;
+    d.onclick=onclick;
+    if(delFn) d.querySelector(".del").onclick=e=>{e.stopPropagation();delFn();};
+    return d;
+  };
+  const g1=document.createElement("div"); g1.className="navgroup"; g1.innerHTML="<h4>Library</h4>";
+  g1.appendChild(mk("◎","All Fonts",state.fonts.length,state.view.type==="all",()=>setView({type:"all",name:null},"All Fonts")));
+  g1.appendChild(mk("★","Favorites",state.favorites.size,state.view.type==="favorites",()=>setView({type:"favorites",name:null},"Favorites")));
+  s.appendChild(g1);
+  const g2=document.createElement("div"); g2.className="navgroup"; g2.innerHTML="<h4>Categories</h4>";
+  cats.forEach(c=>g2.appendChild(mk("",c.replace("-"," "),catCount(c),state.view.type==="category"&&state.view.name===c,
+    ()=>setView({type:"category",name:c},c.replace("-"," ")),catColor(c))));
+  s.appendChild(g2);
+  const g3=document.createElement("div"); g3.className="navgroup";
+  const h=document.createElement("h4"); h.innerHTML=`Collections <span class="add" title="New collection">＋</span>`;
+  h.querySelector(".add").onclick=()=>{el("coll-input").value="";openModal("coll-modal");}; g3.appendChild(h);
+  if(!collNames.length){const e=document.createElement("div");e.className="navitem";e.style.color="var(--muted)";e.style.fontSize="12.5px";e.textContent="No collections yet";g3.appendChild(e);}
+  collNames.forEach(n=>g3.appendChild(mk("▤",n,(state.collections[n]||[]).length,state.view.type==="collection"&&state.view.name===n,
+    ()=>setView({type:"collection",name:n},n),null,
+    ()=>{if(confirm(`Delete collection "${n}"?`)){delete state.collections[n];save();if(state.view.name===n)setView({type:"all",name:null},"All Fonts");renderSidebar();}})));
+  s.appendChild(g3);
+}
+function setView(v,title){state.view=v;el("view-title").textContent=title;renderSidebar();renderGrid();document.querySelector("main").scrollTop=0;}
+
+/* ---------- Compare ---------- */
+function renderCmpBar(){
+  const bar=el("cmpbar"), n=state.compare.size;
+  bar.classList.toggle("show",n>0);
+  el("cmp-count").textContent=n+" selected";
+  el("cmp-chips").innerHTML=[...state.compare].map(f=>`<span class="chip">${f}</span>`).join("");
+}
+function openCompare(){
+  if(!state.compare.size) return;
+  const body=el("cmp-body"); body.innerHTML="";
+  const size=+el("cmp-size").value; const txt=el("cmp-text").value||PANGRAM;
+  [...state.compare].forEach(fam=>{
+    const f=state.fonts.find(x=>x.family===fam)||{family:fam,category:"",weights:[400]};
+    loadFont(fam,f.weights);
+    const row=document.createElement("div"); row.className="crow";
+    row.innerHTML=`<div class="chead"><span class="cname">${fam}</span><span class="tag">${f.category}</span>
+      <span style="color:var(--muted);font-size:12px">${(f.weights||[]).length} weights</span></div>
+      <div class="cprev" style="font-family:'${fam}',${f.category||'sans-serif'};font-size:${size}px">${txt}</div>`;
+    body.appendChild(row);
+  });
+  el("overlay").classList.add("show");
+}
+function refreshCompare(){ if(el("overlay").classList.contains("show")) openCompare(); }
+
+/* ---------- Auto-organize ---------- */
+function autoOrganize(){
+  const rules=[[/mono|code/i,"monospace"],[/script|hand|marker|caveat|vibes|pacifico|dancing|satisfy|kalam|flower|amatic|courgette|sacramento|shadows/i,"handwriting"],
+    [/slab|black|fatface|bebas|anton|bungee|titan|righteous|lobster|passion|archivo|alfa/i,"display"],
+    [/serif|garamond|baskerville|playfair|lora|merriweather|cardo|spectral|domine|bitter|crimson|noto serif|pt serif/i,"serif"]];
+  state.fonts.forEach(f=>{for(const[re,cat]of rules){if(re.test(f.family)){f.category=cat;break;}}});
+  const smart={
+    "Headlines & Impact":state.fonts.filter(f=>f.category==="display").map(f=>f.family).slice(0,24),
+    "Elegant / Editorial":state.fonts.filter(f=>f.category==="serif").map(f=>f.family).slice(0,24),
+    "Clean UI / Body":state.fonts.filter(f=>f.category==="sans-serif").map(f=>f.family).slice(0,24),
+    "Code & Technical":state.fonts.filter(f=>f.category==="monospace").map(f=>f.family),
+  };
+  Object.entries(smart).forEach(([k,v])=>{if(v.length)state.collections[k]=v;});
+  save(); renderSidebar(); renderGrid(); toast("Auto-organized into smart collections by style");
+}
+
+/* ---------- Full catalog ---------- */
+async function loadCatalog(key){
+  el("foot").textContent="Fetching full Google Fonts catalog…";
+  try{
+    const r=await fetch("https://www.googleapis.com/webfonts/v1/webfonts?capability=VF&sort=popularity&key="+encodeURIComponent(key));
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const data=await r.json();
+    state.fonts=data.items.map(it=>({family:it.family,category:it.category,
+      weights:[...new Set(it.variants.map(v=>v==="regular"||v==="italic"?400:parseInt(v)).filter(Boolean))].sort((a,b)=>a-b),
+      axes:(it.axes&&it.axes.length)?it.axes.map(a=>({tag:a.tag,start:a.start,end:a.end})):null}));
+    state.apiKey=key; save();
+    el("foot").textContent="Loaded "+state.fonts.length+" fonts from Google Fonts.";
+    renderSidebar(); renderGrid(); toast("Loaded "+state.fonts.length+" fonts");
+  }catch(err){ el("foot").textContent="Couldn't load full catalog ("+err.message+"). Using starter set."; toast("Load failed — check your API key"); }
+}
+
+/* ---------- Modals + toast ---------- */
+function openModal(id){el(id).classList.add("show");}
+function closeModal(id){el(id).classList.remove("show");}
+let toastT; function toast(m){const t=el("toast");t.textContent=m;t.classList.add("show");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("show"),1900);}
+
+/* ---------- Variable customizer ---------- */
+let custCur=null;
+const AXN={wght:"Weight",wdth:"Width",slnt:"Slant",opsz:"Optical size",ital:"Italic",GRAD:"Grade",YTLC:"Lowercase height"};
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function fmt(v){return (Math.round(v*100)/100).toString();}
+function openCustomizer(family){
+  const f=state.fonts.find(x=>x.family===family); if(!f) return;
+  const variable=!!(f.axes&&f.axes.length);
+  custCur={family,variable,size:76,tracking:0,leading:1.15,italic:false,ax:{},
+    weight:(f.weights&&f.weights.includes(400))?400:((f.weights&&f.weights[0])||400)};
+  if(variable){ loadVariable(f); f.axes.forEach(a=>{
+    custCur.ax[a.tag]= a.tag==="wght"?clamp(400,a.start,a.end):(a.tag==="opsz"?a.end:a.start);
+  }); }
+  else loadFont(family,f.weights);
+  el("cust-name").textContent=family;
+  el("cust-badge").textContent=variable?("Variable font · "+f.axes.length+" axes"):((f.weights||[400]).length+" static weights");
+  renderCustControls(f); applyCust(); renderCustPresets(f);
+  el("cust").classList.add("show");
+}
+function loadVariable(f){
+  const k="VF::"+f.family; if(state.loaded.has(k)) return; state.loaded.add(k);
+  const axes=f.axes.slice().sort((a,b)=>a.tag<b.tag?-1:a.tag>b.tag?1:0);
+  const tags=axes.map(a=>a.tag).join(","), ranges=axes.map(a=>a.start+".."+a.end).join(",");
+  const link=document.createElement("link"); link.rel="stylesheet";
+  link.href="https://fonts.googleapis.com/css2?family="+encodeURIComponent(f.family)+":"+tags+"@"+ranges+"&display=swap";
+  document.head.appendChild(link);
+}
+function rangeCtl(id,label,min,max,val,step,onInput,unit){
+  const d=document.createElement("div"); d.className="ctl";
+  d.innerHTML=`<label>${label}<span class="val" id="v-${id}">${fmt(val)}${unit||""}</span></label>
+    <input type="range" min="${min}" max="${max}" step="${step}" value="${val}">`;
+  const inp=d.querySelector("input");
+  inp.oninput=()=>{let v=parseFloat(inp.value); const r=onInput(v); if(typeof r==="number"){v=r; inp.value=r;} el("v-"+id).textContent=fmt(v)+(unit||"");};
+  return d;
+}
+function renderCustControls(f){
+  const box=el("cust-controls"); box.innerHTML=""; const rows=[];
+  if(custCur.variable){
+    f.axes.forEach(a=>rows.push(rangeCtl(a.tag,AXN[a.tag]||a.tag,a.start,a.end,custCur.ax[a.tag],
+      (a.end-a.start)>50?1:0.1,v=>{custCur.ax[a.tag]=v;applyCust();})));
+  } else {
+    const ws=f.weights||[400], min=Math.min(...ws), max=Math.max(...ws);
+    rows.push(rangeCtl("weight","Weight ("+(WEIGHT_NAME[custCur.weight]||"")+")",min,max,custCur.weight,10,v=>{
+      const w=ws.reduce((p,c)=>Math.abs(c-v)<Math.abs(p-v)?c:p); custCur.weight=w; applyCust();
+      const lbl=box.querySelector('label'); if(lbl) lbl.childNodes[0].nodeValue="Weight ("+(WEIGHT_NAME[w]||"")+")"; return w;
+    }));
+  }
+  rows.push(rangeCtl("size","Size",12,200,custCur.size,1,v=>{custCur.size=v;applyCust();},"px"));
+  rows.push(rangeCtl("tracking","Letter spacing",-5,24,custCur.tracking,0.5,v=>{custCur.tracking=v;applyCust();},"px"));
+  rows.push(rangeCtl("leading","Line height",0.8,2.4,custCur.leading,0.05,v=>{custCur.leading=v;applyCust();}));
+  rows.forEach(r=>box.appendChild(r));
+  const t=document.createElement("label"); t.className="toggle"; t.style.marginTop="2px";
+  t.innerHTML=`<input type="checkbox" ${custCur.italic?"checked":""}/> Italic`;
+  t.querySelector("input").onchange=e=>{custCur.italic=e.target.checked;applyCust();};
+  box.appendChild(t);
+}
+function applyCust(){
+  const p=el("cust-prev"), f=state.fonts.find(x=>x.family===custCur.family)||{category:"sans-serif"};
+  p.style.fontFamily="'"+custCur.family+"', "+(f.category||"sans-serif");
+  p.style.fontStyle=custCur.italic?"italic":"normal";
+  p.style.fontSize=custCur.size+"px"; p.style.letterSpacing=custCur.tracking+"px"; p.style.lineHeight=custCur.leading;
+  if(custCur.variable){ p.style.fontWeight=""; p.style.fontVariationSettings=Object.entries(custCur.ax).map(([t,v])=>`'${t}' ${v}`).join(","); }
+  else { p.style.fontVariationSettings=""; p.style.fontWeight=custCur.weight; }
+  p.textContent=el("cust-text").value||PANGRAM;
+}
+function renderCustPresets(f){
+  const box=el("cust-presets"), list=state.presets[custCur.family]||[];
+  box.innerHTML=list.length?"":`<div style="color:var(--muted);font-size:12.5px">No saved presets for this font yet</div>`;
+  list.forEach((pr,i)=>{
+    const d=document.createElement("div"); d.className="preset";
+    const desc=custCur.variable&&pr.ax?Object.entries(pr.ax).map(([t,v])=>t+" "+fmt(v)).join(" · "):("wght "+(pr.weight||400));
+    d.innerHTML=`<span><b>${pr.name}</b> <span style="color:var(--muted);font-size:11px">${desc}</span></span><span class="pdel" title="Delete">✕</span>`;
+    d.onclick=e=>{ if(e.target.classList.contains("pdel")){ list.splice(i,1); save(); renderCustPresets(f); renderGrid(); return; } applyPreset(pr,f); };
+    box.appendChild(d);
+  });
+}
+function applyPreset(pr,f){
+  custCur.italic=!!pr.italic; custCur.size=pr.size; custCur.tracking=pr.tracking; custCur.leading=pr.leading;
+  if(custCur.variable&&pr.ax) custCur.ax={...pr.ax}; else if(pr.weight) custCur.weight=pr.weight;
+  renderCustControls(f); applyCust(); toast(`Applied "${pr.name}"`);
+}
+function savePreset(){
+  if(!custCur) return;
+  const name=el("preset-name").value.trim()||("Preset "+(((state.presets[custCur.family]||[]).length)+1));
+  const pr={name,italic:custCur.italic,size:custCur.size,tracking:custCur.tracking,leading:custCur.leading};
+  if(custCur.variable) pr.ax={...custCur.ax}; else pr.weight=custCur.weight;
+  (state.presets[custCur.family]=state.presets[custCur.family]||[]).push(pr);
+  save(); el("preset-name").value=""; renderCustPresets(state.fonts.find(x=>x.family===custCur.family)); renderGrid();
+  toast(`Saved preset "${name}"`);
+}
+
+/* ---------- Theme ---------- */
+function applyTheme(){document.body.dataset.theme=state.theme;el("theme-btn").textContent=state.theme==="dark"?"🌙":"☀️";}
+
+/* ---------- Wire up ---------- */
+el("search").addEventListener("input",renderGrid);
+el("size").addEventListener("input",e=>{state.size=+e.target.value;document.querySelectorAll(".card .preview").forEach(p=>p.style.fontSize=state.size+"px");});
+el("preview-text").addEventListener("input",e=>{state.previewText=e.target.value;state.globalMode="custom";syncGlobalSeg();refreshVisiblePreviews();});
+el("global-mode").querySelectorAll("button").forEach(b=>b.onclick=()=>{state.globalMode=b.dataset.m;state.cardMode={};syncGlobalSeg();refreshVisiblePreviews();});
+function syncGlobalSeg(){el("global-mode").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x.dataset.m===state.globalMode));}
+function refreshVisiblePreviews(){document.querySelectorAll(".card .preview:not(.loading)").forEach(p=>p.textContent=sampleFor(p.dataset.family));}
+el("ai-btn").onclick=autoOrganize;
+el("theme-btn").onclick=()=>{state.theme=state.theme==="dark"?"light":"dark";applyTheme();save();};
+el("key-btn").onclick=()=>{el("key-input").value=state.apiKey;openModal("key-modal");};
+el("key-cancel").onclick=()=>closeModal("key-modal");
+el("key-save").onclick=()=>{const k=el("key-input").value.trim();closeModal("key-modal");if(k)loadCatalog(k);};
+el("coll-cancel").onclick=()=>closeModal("coll-modal");
+el("coll-save").onclick=()=>{const n=el("coll-input").value.trim();if(!n)return;(state.collections[n]=state.collections[n]||[]);closeModal("coll-modal");save();renderSidebar();toast(`Collection "${n}" created`);};
+el("cmp-clear").onclick=()=>{state.compare.clear();renderGrid();renderCmpBar();};
+el("cmp-open").onclick=openCompare;
+el("cmp-close").onclick=()=>el("overlay").classList.remove("show");
+el("cmp-size").addEventListener("input",refreshCompare);
+el("cmp-text").addEventListener("input",refreshCompare);
+el("cust-close").onclick=()=>el("cust").classList.remove("show");
+el("cust-text").addEventListener("input",()=>{if(custCur)applyCust();});
+el("preset-save").onclick=savePreset;
+document.querySelectorAll(".modal-bg").forEach(m=>m.onclick=e=>{if(e.target===m)m.classList.remove("show");});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){document.querySelectorAll(".overlay").forEach(o=>o.classList.remove("show"));document.querySelectorAll(".modal-bg").forEach(m=>m.classList.remove("show"));}});
+
+/* ---------- Init ---------- */
+applyTheme(); syncGlobalSeg(); renderSidebar(); renderGrid(); renderCmpBar();
+if(state.apiKey) loadCatalog(state.apiKey);
+else el("foot").textContent=state.fonts.length+" starter fonts · Connect Google Fonts for the full catalog · Saved locally on this PC";
+</script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Light theme (paper + ink) */
+  :root {
+    --background: 60 12% 96%;
+    --foreground: 220 10% 6%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 10% 6%;
+    --primary: 220 8% 8%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 60 6% 93%;
+    --secondary-foreground: 220 10% 10%;
+    --muted: 60 6% 92%;
+    --muted-foreground: 222 5% 45%;
+    --accent: 60 6% 90%;
+    --accent-foreground: 220 10% 10%;
+    --border: 60 6% 88%;
+    --input: 60 6% 88%;
+    --ring: 220 8% 8%;
+    --radius: 0.4rem;
+  }
+
+  /* Dark theme (near-black + electric lime) — the default */
+  .dark {
+    --background: 220 13% 5%;
+    --foreground: 220 18% 96%;
+    --card: 222 14% 6%;
+    --card-foreground: 220 18% 96%;
+    --primary: 73 100% 63%;
+    --primary-foreground: 220 13% 5%;
+    --secondary: 222 12% 9%;
+    --secondary-foreground: 220 18% 96%;
+    --muted: 222 12% 11%;
+    --muted-foreground: 220 8% 46%;
+    --accent: 222 12% 12%;
+    --accent-foreground: 220 18% 96%;
+    --border: 220 10% 15%;
+    --input: 220 10% 15%;
+    --ring: 73 100% 63%;
+    --radius: 0.4rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Slim scrollbars */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 8px; border: 3px solid transparent; background-clip: content-box;
+  }
+}
+
+/* Small helper: uppercase tracked micro-label */
+.micro { text-transform: uppercase; letter-spacing: 0.12em; font-size: 11px; font-weight: 600; }
